@@ -14,11 +14,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
-            TEST: docker
-          - os: ubuntu-latest
-            TEST: podman
-          - os: macos-latest
+          - os: macos-12
             TEST: docker
     runs-on: ${{ matrix.os }}
     steps:
@@ -58,15 +54,24 @@ jobs:
           sudo sh ./get-docker.sh
 
       - name: (Mac) Install docker compose
-        if: matrix.TEST == 'docker' && matrix.os == 'macos-latest'
+        if: matrix.TEST == 'docker' && matrix.os == 'macos-12'
         run: |
-           wget https://desktop.docker.com/mac/main/amd64/Docker.dmg
-           sudo hdiutil attach Docker.dmg
-           sudo /Volumes/Docker/Docker.app/Contents/MacOS/install
-           sudo hdiutil detach /Volumes/Docker
-           wget https://github.com/docker/compose/releases/download/v2.11.0/docker-compose-darwin-x86_64
-           chmod +x docker-compose-darwin-x86_64
-           sudo mv docker-compose-darwin-x86_64 /usr/local/bin/docker-compose
+          wget https://raw.githubusercontent.com/Homebrew/homebrew-cask/fe866ec0765de141599745f03e215452db7f511b/Casks/docker.rb
+          brew install --cask docker.rb
+          mkdir -p /Users/runner/.docker
+          echo "{
+          "insecure-registries" : ["pulp.example.com", "pulp"]
+          }" | sudo tee /Users/runner/.docker/daemon.json
+          sudo /Applications/Docker.app/Contents/MacOS/Docker --unattended --install-privileged-components
+          open -a /Applications/Docker.app --args --unattended --accept-license
+          sleep 5
+          docker images || true
+        env:
+          DOCKER_CONFIG: /Users/runner/.docker
+
+      - name: Debugging with tmate
+        if: always()
+        uses: mxschmitt/action-tmate@v3.11
 
       - name: setup .compose.env files
         run: |
